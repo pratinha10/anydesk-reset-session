@@ -49,5 +49,5 @@ chmod +x anydesk_licenca.sh
 ## 🍎 macOS
 
 ```bash
-curl -s https://raw.githubusercontent.com/pratinha10/Reset-Licen-a-Anydesk/refs/heads/main/reset_licenca_macos.sh | bash
+curl -s https://raw.githubusercontent.com/pratinha10/anydesk-reset-session/refs/heads/main/reset_licenca_macos.sh | bash
 ```
