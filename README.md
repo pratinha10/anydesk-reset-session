@@ -1,4 +1,4 @@
-# 🔄 AnyDesk Free License Reset
+# 🔄 AnyDesk Free License Reset Multiplatform
 
 A script to **reset AnyDesk's free license**, clearing the lockout that blocks connections to other devices after extended use.
 
