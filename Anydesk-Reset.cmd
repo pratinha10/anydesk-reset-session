@@ -1,47 +1,58 @@
 @echo off & setlocal enableextensions
-title Reset AnyDesk
+title AnyDesk Reset Tool
+
+chcp 437 >nul
 
 :: Checks if the script is running as administrator (checks if the key exists in the registry)
 reg query HKEY_USERS\S-1-5-19 >NUL || (
-    echo Please, run as administrator.
+    call :banner
+    echo   [ERROR] This script must be run as administrator.
+    echo(
+    echo   Right-click the file and select "Run as administrator".
+    echo(
     pause >NUL
     exit
 )
 
-chcp 437 
-:: Defines the code page
+call :banner
 
+echo   [1/5] Stopping AnyDesk...
 call :stop_any
+echo         [OK] Service stopped.
+echo(
 
-:: Removes AnyDesk configuration files
-del /f "%ALLUSERSPROFILE%\AnyDesk\service.conf"
-del /f "%APPDATA%\AnyDesk\service.conf"
+echo   [2/5] Removing license configuration...
+del /f "%ALLUSERSPROFILE%\AnyDesk\service.conf" >nul 2>&1
+del /f "%APPDATA%\AnyDesk\service.conf" >nul 2>&1
+echo         [OK] Old license files removed.
+echo(
 
-:: Saves the current user.conf to TEMP
-copy /y "%APPDATA%\AnyDesk\user.conf" "%temp%\"
-
-:: Removes old thumbnails
+echo   [3/5] Backing up your settings...
+copy /y "%APPDATA%\AnyDesk\user.conf" "%temp%\" >nul 2>&1
 rd /s /q "%temp%\thumbnails" 2>NUL
+xcopy /c /e /h /r /y /i /k "%APPDATA%\AnyDesk\thumbnails" "%temp%\thumbnails" >nul 2>&1
+echo         [OK] User config and thumbnails saved.
+echo(
 
-:: Copies the current thumbnails to TEMP
-xcopy /c /e /h /r /y /i /k "%APPDATA%\AnyDesk\thumbnails" "%temp%\thumbnails"
-
-:: Removes all files from the AnyDesk folder (both system and user profiles)
-del /f /a /q "%ALLUSERSPROFILE%\AnyDesk\*"
-del /f /a /q "%APPDATA%\AnyDesk\*"
+echo   [4/5] Clearing AnyDesk data and generating a new ID...
+del /f /a /q "%ALLUSERSPROFILE%\AnyDesk\*" >nul 2>&1
+del /f /a /q "%APPDATA%\AnyDesk\*" >nul 2>&1
 
 call :start_any
 
-:lic
-:: Waits until the system.conf file contains the line "ad.anynet.id="
+echo         Waiting for AnyDesk to assign a new ID
 :wait_lic
 find "ad.anynet.id=" "%ALLUSERSPROFILE%\AnyDesk\system.conf" >nul 2>&1
 if %errorlevel% neq 0 (
+    <nul set /p "=."
     timeout /t 1 >nul
     goto wait_lic
 )
+echo(
+echo         [OK] New ID generated.
+echo(
 
-:: Restores configuration files
+echo   [5/5] Restoring your settings...
 call :stop_any
 
 move /y "%temp%\user.conf" "%APPDATA%\AnyDesk\user.conf" >nul 2>&1
@@ -49,9 +60,32 @@ xcopy /c /e /h /r /y /i /k "%temp%\thumbnails" "%APPDATA%\AnyDesk\thumbnails" >n
 rd /s /q "%temp%\thumbnails" >nul 2>&1
 
 call :start_any
+echo         [OK] Settings restored.
+echo(
 
-echo *********
-echo Completed.
+echo  ============================================================
+echo                     Reset completed!
+echo    AnyDesk is ready to use with a fresh free-tier license.
+echo  ------------------------------------------------------------
+echo                  Tool made by pratinha10
+echo  ============================================================
+echo(
+echo   Press ENTER to close...
+pause >nul
+goto :eof
+
+
+:: ================================
+:: BANNER
+:: ================================
+:banner
+cls
+echo(
+echo  ============================================================
+echo                     AnyDesk Reset Tool
+echo            Resets the free-tier connection license
+echo                     by pratinha10
+echo  ============================================================
 echo(
 goto :eof
 
@@ -60,18 +94,15 @@ goto :eof
 :: START ANYDESK
 :: ================================
 :start_any
-echo Starting AnyDesk service...
+echo         Starting AnyDesk service...
 
-:: If it is already running, do not try to start it again
 sc query AnyDesk | find "RUNNING" >nul
 if %errorlevel%==0 (
-    echo Service is already running.
     goto open_any
 )
 
 sc start AnyDesk >nul 2>&1
 
-:: Waits up to 15 seconds to start up
 set count=0
 :wait_start
 sc query AnyDesk | find "RUNNING" >nul
@@ -81,13 +112,11 @@ timeout /t 1 >nul
 set /a count+=1
 if %count% lss 15 goto wait_start
 
-echo Failed to start service.
+echo         [WARN] Service did not start in time.
 goto :eof
 
 
 :open_any
-echo Opening executable...
-
 set "AnyDesk1=%ProgramFiles(x86)%\AnyDesk\AnyDesk.exe"
 set "AnyDesk2=%ProgramFiles%\AnyDesk\AnyDesk.exe"
 
@@ -101,15 +130,11 @@ exit /b
 :: STOP ANYDESK
 :: ================================
 :stop_any
-echo Stopping AnyDesk service...
-
-:: If already stopped
 sc query AnyDesk | find "STOPPED" >nul
 if %errorlevel%==0 goto kill_proc
 
 sc stop AnyDesk >nul 2>&1
 
-:: Waits until it stops
 set count=0
 :wait_stop
 sc query AnyDesk | find "STOPPED" >nul
@@ -119,7 +144,6 @@ timeout /t 1 >nul
 set /a count+=1
 if %count% lss 15 goto wait_stop
 
-echo Service did not respond correctly.
 :kill_proc
 taskkill /f /im "AnyDesk.exe" >nul 2>&1
 exit /b
